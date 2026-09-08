@@ -1,0 +1,5 @@
+#+TAGS: x
+
+No #+TITLE at all. The title and the slug are both derived, and the two passes
+that derive them must agree — if they disagree the page is written to one route
+and listed at another.

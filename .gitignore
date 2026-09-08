@@ -1,0 +1,52 @@
+###########################################################
+#    (                )     )   (          (              #
+#    )\ )  (       ( /(  ( /(   )\ )       )\ )  *   )    #
+#   (()/(  )\ )    )\()) )\()) (()/( (    (()/(` )  /(    #
+#    /(_))(()/(   ((_)\ ((_)\   /(_)))\    /(_))( )(_))   #
+#   (_))   /(_))_  _((_)  ((_) (_)) ((_)  (_)) (_(_())    #
+#  |_ _| (_)) __|| \| | / _ \ | _ \| __| |_ _||_   _|     #
+#   | |    | (_ || .` || (_) ||   /| _|   | |   | |       #
+#  |___|    \___||_|\_| \___/ |_|_\|___| |___|  |_|       #
+#                                                         #
+#  Author: Cristian D. Moreno - Kyonax                    #
+#  Contact: kyonax.corp@gmail.com                         #
+###########################################################
+
+# =====================
+# NODE / FRONTEND (Vue & Vite)
+# =====================
+node_modules/
+dist/
+build/
+.vite/
+.cache/
+.temp/
+*.tsbuildinfo
+npm-debug.log*
+
+# =====================
+# LOCK / PACKAGES
+# =====================
+*.tgz
+package-lock.json.tmp
+
+# =====================
+# LOGS / REPORTS / COVERAGE
+# =====================
+coverage/
+*.cover
+*.lcov
+.nyc_output/
+*.log
+
+# =====================
+# MISC / TEST / BUILD ARTIFACTS
+# =====================
+*.local
+*.cache/
+.cache-loader/
+coverage/
+storybook-static/
+dist-ssr/
+out/
+public/build/

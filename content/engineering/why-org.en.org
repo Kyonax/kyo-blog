@@ -1,0 +1,18 @@
+#+TITLE: Why Org Mode
+#+DATE: 2026-05-01
+#+LANGUAGE: en
+#+CATEGORY: Engineering
+#+TRANSLATION_KEY: why-org
+#+SERIES: Org Pipeline
+#+SERIES_INDEX: 1
+#+TAGS: org emacs
+
+This is a TEMPLATE POST demonstrating the conventions, not finished writing.
+Replace it with real content.
+
+Four keywords do the structural work. =#+LANGUAGE= sets =<html lang>= and the
+Open Graph locale. =#+TRANSLATION_KEY= pairs this file with its Spanish
+counterpart in the same folder, so the site can emit =hreflang= for both.
+=#+CATEGORY= drives the breadcrumb and =article:section=. =#+SERIES= puts the
+post in a reading order, and inside a series the previous/next links follow the
+series rather than the timeline.

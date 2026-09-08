@@ -1,0 +1,6 @@
+#+SETUPFILE: ../includes/setup.org
+#+TITLE: {{{sitename}}} Weekly
+#+DATE: 2026-02-01
+
+The title is a macro defined in an external setupfile. Resolving it requires the
+setupfile pass to run before the title is read, and before the slug is derived.

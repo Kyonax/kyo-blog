@@ -1,0 +1,9 @@
+#+TITLE: Startup
+#+STARTUP: nonum entitiespretty
+#+DATE: 2026-04-10
+
+=#+STARTUP: nonum= maps onto =num:nil=, so the headings below must NOT be
+numbered. =entitiespretty= maps onto =e:t=.
+
+* First heading
+* Second heading

@@ -1,0 +1,4 @@
+#+TITLE: 日本語のタイトル
+
+A title with no ASCII at all. It must never slugify to an empty route and land
+at the output root; the filename is the fallback.

@@ -1,0 +1,2 @@
+#+MACRO: sitename Kyonax Journal
+#+OPTIONS: toc:t

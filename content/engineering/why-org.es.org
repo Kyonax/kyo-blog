@@ -1,0 +1,16 @@
+#+TITLE: Por Qué Org Mode
+#+DATE: 2026-05-01
+#+LANGUAGE: es
+#+CATEGORY: Ingeniería
+#+TRANSLATION_KEY: why-org
+#+SERIES: Org Pipeline
+#+SERIES_INDEX: 1
+#+TAGS: org emacs
+
+Esta es una ENTRADA PLANTILLA que demuestra las convenciones; no es contenido
+terminado. Reemplázala con texto real.
+
+El archivo en español es un documento propio, escrito a mano: no hay traducción
+automática en ninguna parte del proceso. Comparte =#+TRANSLATION_KEY= con su
+contraparte en inglés, y por eso el sitio puede emparejar ambas versiones con
+=hreflang= aunque los slugs sean distintos.

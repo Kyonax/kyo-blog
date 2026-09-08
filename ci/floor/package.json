@@ -1,0 +1,16 @@
+{
+  "name": "org2html-floor-proof",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A minimal consumer that installs @kyonax/org2html from the registry and builds the corpus. It exists to prove the package's OWN declared Node floor (>=18.13.0) on every supported major, which the blog itself cannot do: the blog's Vite toolchain requires >=20.19.",
+  "engines": {
+    "node": ">=18.13.0"
+  },
+  "scripts": {
+    "proof": "org2html build ../corpus -o out --include-root ../../includes --base-url https://kyonax.com/blog --asset-base /blog && node ../copy-media.mjs ../../media out/media && node ../assert-build.mjs out --corpus --origin https://kyonax.com --base-path /blog && node ../feature-surface.mjs"
+  },
+  "dependencies": {
+    "@kyonax/org2html": "^1.1.0"
+  }
+}

@@ -1,0 +1,4 @@
+#+TITLE: Undated
+
+No date anywhere. No sidecar may invent one from the wall clock — an invented
+lastmod is both a lie and a source of build non-determinism.

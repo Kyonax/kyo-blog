@@ -1,0 +1,208 @@
+# =============================================================================
+# shipwright contract — kyo-blog
+# =============================================================================
+# This file is the ONLY thing standing between an unattended run and this repo's
+# history. It is fingerprinted: change any byte and shipwright refuses to run
+# this repo until you re-approve it.
+#
+#     shipwright enroll .          (first time)
+#     shipwright approve .         (after any edit to this file)
+#     shipwright status            (shows fingerprint drift)
+#
+# WHAT THIS REPO IS: the .org sources of the Kyonax blog, built by the PUBLISHED
+# @kyonax/org2html into dist/blog and deployed at kyonax.com/blog. The corpus in
+# content/ is currently a REGRESSION FIXTURE SET -- one document per shape the
+# engine has historically got wrong -- so CI proves the published package still
+# behaves before any real post depends on it.
+# =============================================================================
+
+schema = 1
+
+# -----------------------------------------------------------------------------
+# [repo]
+# -----------------------------------------------------------------------------
+[repo]
+name = "kyo-blog"
+default_branch = "main"
+pr_base = ""
+
+# guarded: the owner's own repo, but reviewed. Its minimums are met by the
+# pull-request mode below plus a non-empty [paths].require_pr. Written down
+# rather than derived, so falling short of those minimums becomes a refusal
+# instead of a warning.
+tier = "guarded"
+
+remote = "origin"
+hot_window_min = 10
+hot_window_s = -1
+
+# -----------------------------------------------------------------------------
+# [commit]
+# -----------------------------------------------------------------------------
+[commit]
+# This repository has no history yet, so the vocabulary is taken from the
+# closest Kyonax sibling -- kyo-web-online, the other deployed site -- whose
+# last 40 commits use feat, fix and chore with scoped subjects. docs and build
+# are added for the two things this repo will certainly do that a Vue site does
+# less of: prose changes, and moving the build/deploy wiring.
+types = ["feat", "fix", "chore", "docs", "build"]
+
+# On, together with `scopes` and `split_by_scope`, so each slot produces one
+# small commit per area rather than a single commit mixing a blog post with a
+# workflow change.
+scope_required = true
+
+# Mapped to this repo's actual tree, not to a generic list:
+#   content  content/**, includes/**      the .org sources and their setupfiles
+#   ci       ci/**, .github/**            the assertion harness and workflows
+#   deps     package.json, lockfiles      the org2html version and the dep tree
+#   app      src/**                       the Vue shell
+#   config   everything else              eslint, tsconfig, vite, prettier
+#   docs     README.org and friends
+scopes = ["content", "ci", "deps", "app", "config", "docs"]
+
+# Files matching no scope above land here. Must be one of `scopes`.
+default_scope = "config"
+
+split_by_scope = true
+
+max_files = 25
+max_files_run = 0
+body_max_files = 0
+trailer = true
+
+# -----------------------------------------------------------------------------
+# [flow]
+# -----------------------------------------------------------------------------
+[flow]
+# Owner's choice. Push directly unless main is protected on GitHub, in which
+# case the remote's own protection decides. Note that in practice almost every
+# change here still goes through a pull request, because [paths].require_pr
+# below covers content, ci, .github and the manifests -- that is deliberate:
+# this repo deploys to a live public site from its default branch.
+mode = "pr-on-protected"
+
+branch_prefix = "auto/"
+branch_template = ""
+unbranded = false
+pr_draft = false
+pr_reviewers = []
+
+# Left off, so each slot opens its own self-contained pull request. Turn this on
+# if three PRs a day becomes noise and you would rather the day's commits
+# accumulate onto one.
+pr_sticky = false
+
+pr_brand = ""
+restore_branch = true
+
+# -----------------------------------------------------------------------------
+# [gates] — commands that must exit 0.
+# -----------------------------------------------------------------------------
+# NOTE, said out loud rather than left as an empty list: this repo has NO unit
+# tests. src/__tests__/ exists and is empty, and `vitest run` therefore exits 1
+# with "No test files found". A `--passWithNoTests` gate would be a gate that
+# cannot fail, which is worse than no gate, so vitest is deliberately absent
+# here. Add it the day the first test lands.
+#
+# The real safety net is pre_push: blog:verify builds the corpus with the
+# published package and runs ci/assert-build.mjs over the OUTPUT, including the
+# sub-path deploy contract for kyonax.com/blog. It has been proven able to fail
+# in both directions (a build missing --asset-base, and one missing --base-url).
+[gates]
+pre_commit = ["npm run lint:check", "npm run type-check"]
+pre_push = ["npm run blog:verify"]
+timeout_s = 900
+
+# -----------------------------------------------------------------------------
+# [tag] — off. This repository publishes a website, not a package: it has no
+# version anyone consumes, so there is nothing for a tag to mean.
+# -----------------------------------------------------------------------------
+[tag]
+enabled = false
+when = "never"
+manifest = "package.json"
+pattern = "v{version}"
+push_tag = false
+
+# -----------------------------------------------------------------------------
+# [version] — untouched. Nothing here derives a bump, because nothing is
+# released from this repo.
+# -----------------------------------------------------------------------------
+[version]
+allow = []
+manifest = ""
+derive = true
+map = {}
+changelog = ""
+
+# -----------------------------------------------------------------------------
+# [paths]
+# -----------------------------------------------------------------------------
+[paths]
+never_commit = []
+
+# Owner's choice, and wider than the recommendation: content/** is included, so
+# every post is looked at before it goes live on a public site.
+#   .github/**   a workflow change alters what CI is allowed to do -- including
+#                the gate that proves the published package still works
+#   ci/**        the assertion harness; weaken it and every later run passes for
+#                the wrong reason
+#   manifests    where the org2html version and the whole dependency tree live.
+#                This is not theoretical: adding org2html to this repo's
+#                existing lockfile deduped picomatch and ws DOWN onto versions
+#                with high-severity advisories, which a fresh install does not
+#                do. That regression enters through exactly these two files.
+require_pr = [
+  ".github/**",
+  "ci/**",
+  "content/**",
+  "package.json",
+  "package-lock.json",
+]
+
+# -----------------------------------------------------------------------------
+# [secrets]
+# -----------------------------------------------------------------------------
+[secrets]
+allow_paths = []
+
+# -----------------------------------------------------------------------------
+# [repair]
+# -----------------------------------------------------------------------------
+[repair]
+process = true
+
+# Owner's choice, made with the full shape stated: this is the only case in
+# which an automated run edits source. The resolution is verified mechanically
+# (no markers left, the modified file set must equal the conflicted set exactly,
+# nothing created or deleted, every gate green); any failure discards the whole
+# attempt and restores the worktree; and a success FORCES a pull request and
+# lands in `shipwright review` until acknowledged.
+conflicts = true
+
+max_attempts = 2
+
+# -----------------------------------------------------------------------------
+# [schedule]
+# -----------------------------------------------------------------------------
+[schedule]
+# Owner's choice: morning, afternoon, end of day. A slot with no changes costs
+# nothing, so this is about limiting the opportunities for a surprise rather
+# than about cost.
+slots = ["09:00", "15:00", "23:00"]
+
+min_interval_min = 0
+persist = ""
+persist_max_wait_min = 25
+persist_max_attempts = 3
+
+# -----------------------------------------------------------------------------
+# [context]
+# -----------------------------------------------------------------------------
+# The brain session that explains this work: the org2html session node carries
+# the RECOVERY CONTEXT for the engine, the published package and this consumer
+# integration. Shipwright only ever READS it.
+[context]
+session = "org-2-html"
+branches = {}

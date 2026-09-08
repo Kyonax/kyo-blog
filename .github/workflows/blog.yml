@@ -1,0 +1,162 @@
+name: blog
+
+# This workflow tests the PUBLISHED @kyonax/org2html package as a stranger would.
+# Nothing here builds org2html from source, and nothing links to a local checkout:
+# if a step can pass because the engine's source tree happens to be nearby, it is
+# testing nothing. A loud failure is a feature; a silent wrong answer is the bug.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  # The registry is the thing under test, and it changes without us pushing.
+  schedule:
+    - cron: "17 6 * * 1"
+
+concurrency:
+  group: blog-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Does the package hold up on the Node floor it actually claims?
+  #
+  # org2html declares engines.node >=18.13.0. The blog itself cannot prove that:
+  # its Vite toolchain needs >=20.19. So the proof runs in ci/floor -- a minimal
+  # consumer with its own package.json, its own lockfile and engine-strict=true,
+  # which installs the package from the registry and builds this repo's corpus.
+  # ---------------------------------------------------------------------------
+  floor:
+    name: package floor (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["18.13.0", "20", "22"]
+    defaults:
+      run:
+        working-directory: ci/floor
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: ci/floor/package-lock.json
+
+      # npm ci from a COMMITTED lockfile, not npm install. This is the failure
+      # that nearly killed org2html's own v1.1.0 release: a lock written by npm
+      # 11 that npm 10 refused. setup-node ships npm 10 on Node 18 and 20, so
+      # this step is the regression test for exactly that.
+      - name: Install from the registry
+        run: npm ci
+
+      - name: Report what was actually installed
+        run: |
+          node -p "'org2html ' + require('@kyonax/org2html/package.json').version"
+          node -v
+          npm -v
+
+      - name: No known vulnerabilities in what a reader would ship
+        run: npm audit --omit=dev
+
+      - name: Build the corpus and assert the output
+        run: npm run proof
+
+  # ---------------------------------------------------------------------------
+  # Does the blog itself build, and is the output correct for a SUB-PATH deploy?
+  #
+  # Every asset org2html emits is root-absolute, so a site served from
+  # kyonax.com/blog 404s on all of them unless --asset-base prefixes them and
+  # --base-url carries the sub-path. ci/assert-build.mjs fails the job rather
+  # than letting a broken /blog deploy look healthy.
+  # ---------------------------------------------------------------------------
+  blog:
+    name: build and assert the blog
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: No known vulnerabilities in the deployed dependency tree
+        run: npm audit --omit=dev
+
+      - name: Build the blog
+        run: npm run blog:build
+
+      - name: Assert the built output
+        run: npm run blog:assert
+
+      # The fixture corpus is what proves the PUBLISHED package still behaves.
+      # It is separate from content/ so a real post is never required to use a
+      # verse block just to keep a coverage gate green.
+      - name: Verify the package against the fixture corpus
+        run: npm run corpus:verify
+
+      # THE BUILD IS DETERMINISTIC. Two builds of the same sources must be
+      # byte-identical -- a difference means something read the wall clock, and
+      # an invented timestamp is both a lie and an unreproducible deploy.
+      - name: The build is deterministic
+        run: |
+          mv dist/blog dist/blog-first
+          npm run blog:build
+          diff -r dist/blog-first dist/blog
+
+      - name: Upload the built site
+        uses: actions/upload-artifact@v4
+        with:
+          name: blog-${{ github.sha }}
+          path: |
+            dist/blog
+            dist/blog-manifest.json
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # Tell the site to rebuild.
+  #
+  # This repo publishes nothing itself. The site repo owns the deploy: it
+  # checks this content out, renders it into prerendered Vue routes, and pushes
+  # dist/ to build-main, which Hostinger's hPanel Git integration pulls into
+  # /public_html. So a merge here has to reach that workflow, and a
+  # repository_dispatch is the only trigger that crosses repositories.
+  #
+  # Gated on BOTH test jobs and on main only: a dispatch fires a production
+  # deploy, and a corpus that fails its own assertions must never reach it.
+  # ---------------------------------------------------------------------------
+  dispatch:
+    name: notify kyo-web-online
+    needs: [floor, blog]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger the site build
+        env:
+          # A PAT with `repo` scope on Kyonax/kyonax.github.io — note the repo
+          # is NAMED kyonax.github.io even though the working directory and the
+          # package are called kyo-web-online. The default
+          # GITHUB_TOKEN is scoped to THIS repository and cannot dispatch to
+          # another one.
+          TOKEN: ${{ secrets.SITE_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::warning::SITE_DISPATCH_TOKEN is not set - the site was not notified."
+            exit 0
+          fi
+          curl --fail-with-body -sS -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $TOKEN" \
+            https://api.github.com/repos/Kyonax/kyonax.github.io/dispatches \
+            -d '{"event_type":"blog-updated","client_payload":{"sha":"${{ github.sha }}"}}'
+          echo "dispatched blog-updated (${{ github.sha }})"

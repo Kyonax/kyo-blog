@@ -1,0 +1,5 @@
+#+TITLE: Stamped
+#+DATE: <2026-03-01 Sun>
+
+An Org active timestamp, not an ISO string. Every publishing surface must
+normalise it; only metadata.json keeps it verbatim, beside a normalised dateIso.

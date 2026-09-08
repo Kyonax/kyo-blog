@@ -1,0 +1,193 @@
+# Copyright (c) 2026 Cristian D. Moreno — @Kyonax
+# Distributed under the terms of LGPL-3.0-only.
+#
+# README.org — GitHub landing page
+# 2026-09-08
+#
+# What this repo is, how it builds, and the one contract a reader must know
+# before deploying it anywhere other than a domain root.
+
+#+TITLE: The Kyo Blog
+#+AUTHOR: [[https://orcid.org/0009-0006-4459-5538][Cristian D. Moreno - Kyonax]]
+#+EMAIL: kyonax.corp@gmail.com
+#+DATE: September 08, 2026
+#+FILETAGS: :KYO:BLOG:ORG_2_HTML:CONSUMER:
+#+LAST_UPDATE: September 08, 2026
+
+* What this is
+
+The Org-mode sources of the Kyonax blog, built into static HTML by the
+*published* =@kyonax/org2html= package and served from =kyonax.com/blog=.
+
+It is also the package's first real consumer. Nothing here builds org2html from
+source and nothing links to a local checkout: the dependency is installed from
+the npm registry like anybody else's. If a check could pass because the engine's
+source tree happens to be nearby, it would be testing nothing.
+
+* Layout
+
+| Path              | What lives there                                              |
+|-------------------+---------------------------------------------------------------|
+| =content/=        | The =.org= sources. =everything.org= is the showcase; see below. |
+| =includes/=       | =#+SETUPFILE= targets. Deliberately OUTSIDE =content/=, so a  |
+|                   | shared settings file never becomes a published page.          |
+| =media/=          | Images. org2html does not copy these; =ci/copy-media.mjs= does. |
+| =ci/assert-build.mjs= | The output gate. Asserts against the BUILD OUTPUT alone.  |
+| =ci/feature-surface.mjs= | The API and CLI gate: calls the 18 exports, drives stdin/vue/fragment, =--strict= and =--components=. |
+| =ci/copy-media.mjs= | Puts =media/= into the build.                               |
+| =ci/floor/=       | A minimal consumer that proves the package's own Node floor.  |
+| =dist/blog/=      | Build output. Generated, gitignored.                          |
+
+** The corpus: one showcase, plus seven irreducible documents
+
+=content/everything.org= is the showcase. ONE file exercising *all 22* of the
+engine's =KNOWN_CONSTRUCTS=, plus the sanitizer, math, both =#+INCLUDE= forms and
+a component. Delete it and the coverage gate reports seventeen missing
+constructs, which is the measure of how much it carries.
+
+Its sections are named /Images/, /Links/, /Location/, /Name/ and /Plugins/ on
+purpose: those ids collide with ids the page shell already uses, so the engine
+must disambiguate them with a =-section= suffix instead of clobbering its own
+anchors.
+
+The other seven documents *cannot* be folded into it, and are not leftovers. A
+document has exactly one title, one date and one =#+STARTUP=, and three of these
+tests are about something being ABSENT:
+
+| Document              | Why it needs its own file                        |
+|-----------------------+--------------------------------------------------|
+| =japanese.org=        | a title with no ASCII — one title per document   |
+| =2026-08-21-my-post.org= | NO =#+TITLE= — an absence cannot be shared    |
+| =post.org=            | title from a setupfile MACRO — one title         |
+| =stamped.org=         | =#+DATE= as an Org timestamp — one date          |
+| =undated.org=         | NO date at all — an absence                      |
+| =dynamic.org=         | the document OPENS with a block — position is the test |
+| =startup.org=         | =#+STARTUP: nonum= — one startup per document    |
+
+*Why the showcase exists at all:* the regression shapes alone exercised only
+*7 of 22* constructs, contained no raw HTML (so =SANITIZE BY DEFAULT= was never
+tested) and no math, though =temml= is a production dependency.
+=ci/assert-build.mjs= now imports =KNOWN_CONSTRUCTS= from the package and *fails
+the build* if the corpus stops covering every one, so it cannot narrow again.
+
+** What the gates prove
+
+| Gate                    | What it would catch                                    |
+|-------------------------+--------------------------------------------------------|
+| construct coverage      | the corpus narrowing to whatever was written first     |
+| sanitizer               | an injection vector surviving into the article         |
+| image existence         | a referenced image nobody copied — a 404 in production |
+| sub-path contract       | a build that is quietly wrong for =kyonax.com/blog=    |
+| determinism             | anything reading the wall clock                        |
+| feature surface         | the library API or a CLI mode breaking                 |
+
+Each has been *proven able to fail*, not merely written: rebuilding with
+=--no-sanitize= turns all eleven sanitizer assertions red, skipping =copy-media=
+reddens the image assertions, and building without =everything.org= reports
+seventeen missing constructs AND trips the guard that the sanitizer fixture is
+present at all — so removing the fixture can never silently disable its suite.
+
+One assertion is deliberately NOT blunt. =input= is *narrowed*, not forbidden:
+forbidding it outright once stripped the checkbox from every Org task item. So
+the gate asserts the engine's own checkboxes SURVIVE and that every surviving
+=input= is a checkbox or radio, rather than asserting no =input= exists — which
+would have passed for the wrong reason, by breaking every task list.
+
+* Commands
+
+#+BEGIN_SRC sh
+npm run blog:build     # build content/ into dist/blog, then copy media/
+npm run blog:assert    # assert the built output, including the sub-path contract
+npm run blog:surface   # call the library API and drive the CLI's other modes
+npm run blog:verify    # all three, in order — this is the pre-push gate
+npm run lint:check     # eslint, non-mutating (npm run lint rewrites files)
+npm run type-check     # vue-tsc
+#+END_SRC
+
+* The sub-path deploy contract
+
+*Read this before deploying anywhere that is not a domain root.*
+
+Every asset org2html emits is ROOT-ABSOLUTE. A site served from =kyonax.com/blog=
+therefore 404s on all of them unless the build says so explicitly. Two flags,
+and both are required:
+
+| Flag                                    | What it fixes                        |
+|-----------------------------------------+--------------------------------------|
+| =--asset-base /blog=                    | =/favicon.svg= → =/blog/favicon.svg= |
+| =--base-url https://kyonax.com/blog=    | canonical, =og:url=, JSON-LD and every page-to-page link become absolute under the sub-path |
+
+Omit either one and the build still succeeds, still looks healthy, and is
+quietly wrong — page links resolve to =kyonax.com/anchors= instead of
+=kyonax.com/blog/anchors=. That is why =ci/assert-build.mjs= checks both, and why
+it has been proven able to fail in each direction rather than merely written.
+
+** Content images are the consumer's job
+
+org2html copies the assets IT writes — =styles.css=, =o2h.js=, =favicon.svg=,
+=manifest.json=, Style Book assets and fonts. It does *not* copy an image a
+document references, and =--asset-base= does *not* rewrite that image's URL
+either: both are scoped to the engine's own asset list, which the CLI help
+enumerates. Measured:
+
+| the document writes      | the engine emits            | at kyonax.com/blog        |
+|--------------------------+-----------------------------+---------------------------|
+| =[[./sample.png]]=       | =src="./sample.png"=        | resolves inside the PAGE directory, and nothing was copied there |
+| =[[/media/sample.png]]=  | =src="/media/sample.png"=   | misses the =/blog= prefix entirely |
+| =[[https://…]]=          | unchanged                   | correct                   |
+
+So the convention here is: images live in =media/=, documents reference them at
+their DEPLOYED path (=/blog/media/x.png=), and =ci/copy-media.mjs= — wired into
+=blog:build= — puts the files where those URLs point. =ci/assert-build.mjs=
+fails the build if any referenced image is missing from the output, which turns
+a silent production 404 into a loud build failure.
+
+** The JSON sidecars stay root-relative, on purpose
+
+=sitemap.json= and the =url= / =prev= / =next= fields of =relations.json= remain
+root-relative (=/anchors=) even under =--base-url=. They ship as DATA for a
+consumer to compose, not as links. Anything rendering navigation from those
+files must prefix the base path itself. The =breadcrumb= inside =relations.json=
+IS absolute, because it feeds =BreadcrumbList= structured data.
+
+** metadata.json is the verbatim record, not a publishing surface
+
+=metadata.json= keeps =date= exactly as the author typed it — =<2026-03-01 Sun>= —
+beside a normalised =dateIso=, just as it keeps =options=, =properties= and
+=keywords= raw. The surfaces bound by the ISO law are =og-metadata.json=,
+=structured-data.json=, =feed.json=, =sitemap.json= and the rendered
+=<time datetime>=. An assertion that demands ISO *everywhere* will flag
+=metadata.json= and be wrong.
+
+* CI
+
+=.github/workflows/blog.yml=, two jobs:
+
+- *package floor* — a matrix of Node 18.13.0, 20 and 22, run inside =ci/floor/=,
+  which has its own =package.json= (=engines: >=18.13.0=), its own lockfile and
+  =engine-strict=true=. It installs from the registry with =npm ci= and builds
+  the corpus. The blog itself cannot prove that floor, because its Vite
+  toolchain needs =>=20.19=; conflating the two would have meant either lying
+  about org2html's floor or never testing it.
+
+  The lockfile there is generated with *npm 10* on purpose. A lock written by
+  npm 11 that npm 10 refused is the failure that nearly killed org2html's own
+  v1.1.0 release, and =setup-node= ships npm 10 on Node 18 and 20.
+
+- *blog* — installs, audits production dependencies, builds, asserts, proves the
+  build is byte-identical across two runs, and uploads the site as an artifact.
+
+* Dependency note
+
+Adding =@kyonax/org2html= to this repo's pre-existing lockfile deduped
+=picomatch= and =ws= DOWN onto versions carrying high-severity advisories —
+2.3.1 and 8.18.3, where a fresh install of the package alone resolves 2.3.2 and
+8.21.3 and audits clean. The package was not at fault; the consumer's existing
+lockfile was. =npm update picomatch ws postcss nanoid= cleared it, and
+=npm audit --omit=dev= runs in CI so it cannot come back silently.
+
+* Not wired yet
+
+Deployment. The build produces =dist/blog=, and CI uploads it as an artifact,
+but nothing publishes it to =kyonax.com/blog= — that is a cross-repository step
+into =kyo-web-online= and needs a decision about how the two repos hand off.
