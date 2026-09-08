@@ -124,6 +124,19 @@ jobs:
           if-no-files-found: error
 
   # ---------------------------------------------------------------------------
+  # NOT HERE YET: fetching X replies.
+  #
+  # Comments are a BUILD-TIME feature and are deliberately parked. The account
+  # has no API credits, and the failure modes are opposite: with NO token the
+  # engine warns and returns cleanly, while a token with no credits gets a 402
+  # and THROWS, failing this workflow. So X_BEARER_TOKEN is intentionally not
+  # set and no fetch step exists.
+  #
+  # README.org -> "Comments — PARKED" carries the evidence and the exact
+  # re-enable procedure.
+  # ---------------------------------------------------------------------------
+
+  # ---------------------------------------------------------------------------
   # Tell the site to rebuild.
   #
   # This repo publishes nothing itself. The site repo owns the deploy: it

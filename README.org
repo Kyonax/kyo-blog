@@ -186,6 +186,86 @@ Adding =@kyonax/org2html= to this repo's pre-existing lockfile deduped
 lockfile was. =npm update picomatch ws postcss nanoid= cleared it, and
 =npm audit --omit=dev= runs in CI so it cannot come back silently.
 
+* Comments — PARKED, and deliberately so
+
+X replies are a BUILD-TIME feature: =org2html comments fetch= writes a JSON
+cache, the site prerenders it, and a reader pays nothing — no request, no
+JavaScript, no third-party origin. Nothing about the blog depends on it, so it
+can be switched on any time without touching a line of code.
+
+It is off because the X API bills per request and the account has no balance.
+
+** What is already proven
+
+Measured on 2026-09-08, so none of this has to be rediscovered:
+
+| Fact                          | Evidence                                            |
+|-------------------------------+-----------------------------------------------------|
+| The endpoint is entitled      | =GET /2/tweets/search/recent= — 450 req/15 min, per app (app auth), under Default Project |
+| The app exists and is wired   | =kyo-blog-comments=, id 33414627, connected to Default Project (Pay Per Use) |
+| The bearer token is valid     | A real call returned *402*, not 401 or 403 — auth passed, entitlement passed |
+| The only blocker is money     | =HTTP 402 {"detail":"credits depleted"}=, balance $0.00, no payment method |
+
+** THE TRAP: a token with no credits is WORSE than no token
+
+This is the one thing to remember, because the failure modes are opposite:
+
+- *No =X_BEARER_TOKEN=* → =runFetch= warns "X_BEARER_TOKEN is not set —
+  skipping the fetch", leaves the cache untouched and *returns cleanly*. The
+  build is unaffected.
+- *Token set, no credits* → the first request gets 402 and the engine
+  *throws* (=X request failed (402)=), which fails the job.
+
+So the secret is *deliberately not set*. Do not add it back until credits exist,
+or every CI run goes red for a reason that has nothing to do with the content.
+
+** Turning it on later
+
+1. console.x.com → Billing → Credits → =Redeem Voucher=, or =Purchase credits=
+2. On that page set =Manage Spend Cap= — it defaults to *Unlimited*
+3. Regenerate the bearer: Apps → =kyo-blog-comments= → Keys & Tokens →
+   App-Only Authentication → =Regenerate=
+4. Verify BEFORE storing it:
+   #+BEGIN_SRC sh
+   read -rs -p "Bearer: " XT; echo
+   curl -s -o /dev/null -w "HTTP %{http_code}\n" \
+     -H "Authorization: Bearer $XT" \
+     "https://api.x.com/2/tweets/search/recent?query=from:XDevelopers&max_results=10"
+   #+END_SRC
+   Only a *200* means it is ready.
+5. =gh secret set X_BEARER_TOKEN --repo Kyonax/kyo-blog=
+6. Add =#+POST_URL: https://x.com/kyonax_on_tech/status/<id>= to a post — no
+   other keyword opts a document in
+7. Add the fetch step to =.github/workflows/blog.yml=, before the site is
+   notified:
+   #+BEGIN_SRC yaml
+   - name: Fetch X replies
+     env:
+       X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+     run: npx org2html comments fetch dist/blog --cache public/comments --held quarantine
+   #+END_SRC
+
+*Cost shape:* about *2 requests per post per fetch* (one search page plus one
+root-post lookup), rising to ~11 only for a thread over 100 replies. A daily job
+across 10 posts is roughly 600–900 requests a month.
+
+** Two engine rules that bite later
+
+- *The cache is a RECORD, not a mirror.* X's reply endpoint reaches back *seven
+  days* only. A reply that ages out can never be fetched again, so the cache
+  must be COMMITTED and must never be wiped by a rebuild. It is the one artefact
+  in this repo that cannot be regenerated.
+- *=--held= must resolve OUTSIDE =--cache=.* The cache is served publicly, so a
+  quarantined reply placed inside it would be published. The command refuses to
+  run when they overlap — it is not a warning.
+
+** Developing without a token
+
+=org2html comments sample <built-dir>= writes a fixed, obviously fictional
+thread that exercises the depth cap, the orphan rule and an unbreakable long
+token. It needs no credentials and no balance. Sample data is marked
+=sample: true= and *must never be committed* — =comments clear= removes it.
+
 * Not wired yet
 
 Deployment. The build produces =dist/blog=, and CI uploads it as an artifact,
