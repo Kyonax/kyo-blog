@@ -1,4 +1,4 @@
-#+SETUPFILE: ../includes/setup.org
+#+SETUPFILE: ../../includes/setup.org
 #+TITLE: {{{sitename}}} Weekly
 #+DATE: 2026-02-01
 

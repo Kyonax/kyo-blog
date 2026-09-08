@@ -2,7 +2,7 @@
 #+DATE: 2026-04-02
 #+OPTIONS: toc:t
 #+TAGS: showcase reference
-#+SETUPFILE: ../includes/setup.org
+#+SETUPFILE: ../../includes/setup.org
 
 One document exercising every construct the engine knows, so a single file
 proves the whole surface. The sections named /Images/, /Links/, /Location/,
@@ -148,12 +148,12 @@ rather than failing silently or dying:
 
 Content spliced in from other files. A prose include:
 
-#+INCLUDE: "../includes/snippet.org"
+#+INCLUDE: "../../includes/snippet.org"
 
 And a source include, which must arrive as a highlighted code block rather
 than as prose:
 
-#+INCLUDE: "../includes/sample.js" src js
+#+INCLUDE: "../../includes/sample.js" src js
 
 * Name
 

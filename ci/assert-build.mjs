@@ -16,7 +16,9 @@
  * Exit 0 = every assertion held. Exit 1 = at least one did not.
  */
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs"
-import { join } from "node:path"
+import { createRequire } from "node:module"
+import { dirname, join } from "node:path"
+import { pathToFileURL } from "node:url"
 
 const argv = process.argv.slice(2)
 const SITE = argv.find((a) => !a.startsWith("--")) ?? "dist/blog"
@@ -214,7 +216,21 @@ for (const dir of pageDirs) {
 // corpus exercises all of it is what stops this suite quietly narrowing to the
 // handful of shapes somebody happened to write first.
 if (CORPUS) {
-  const api = await import("@kyonax/org2html")
+  /* Resolve from the CURRENT WORKING DIRECTORY, not from this file.
+     A bare import resolves relative to the importing MODULE, so running this
+     from ci/floor (which has its own node_modules and is the only place the
+     package is installed in that job) walked up from ci/ and found nothing.
+     That passed locally only because the repo root happened to have the
+     package installed too. */
+  const req = createRequire(pathToFileURL(join(process.cwd(), "package.json")))
+  /* Resolve package.json, not the bare name: the package is ESM-only and its
+     "." export declares no `require` condition, so a CJS resolve of the name
+     throws ERR_PACKAGE_PATH_NOT_EXPORTED. "./package.json" IS exported, and
+     the real entry is read from it rather than hardcoded. */
+  const pkgPath = req.resolve("@kyonax/org2html/package.json")
+  const pkg = JSON.parse(readFileSync(pkgPath, "utf8"))
+  const entry = pkg.exports?.["."]?.import ?? pkg.module ?? pkg.main
+  const api = await import(pathToFileURL(join(dirname(pkgPath), entry)).href)
   const known = api.KNOWN_CONSTRUCTS
   let markup = ""
   for (const dir of pageDirs) {
