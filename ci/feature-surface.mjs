@@ -16,13 +16,26 @@
  */
 import { execFileSync } from "node:child_process"
 import { createRequire } from "node:module"
-import { mkdtempSync, writeFileSync, rmSync, existsSync } from "node:fs"
+import { mkdtempSync, writeFileSync, rmSync, existsSync, readFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join, dirname } from "node:path"
+import { pathToFileURL } from "node:url"
 
-const require = createRequire(import.meta.url)
+/* Resolve from the CURRENT WORKING DIRECTORY, not from this file.
+   A bare specifier resolves relative to the importing MODULE, so running this
+   from ci/floor -- the only place the package is installed in that job --
+   walked up from ci/ and found nothing. It passed locally only because the
+   repo root happened to have the package installed too. */
+const require = createRequire(pathToFileURL(join(process.cwd(), "package.json")))
 const PKG_JSON = require.resolve("@kyonax/org2html/package.json")
-const CLI = join(dirname(PKG_JSON), "dist", "cli", "index.mjs")
+const PKG_DIR = dirname(PKG_JSON)
+const PKG = JSON.parse(readFileSync(PKG_JSON, "utf8"))
+const CLI = join(PKG_DIR, "dist", "cli", "index.mjs")
+/* The package is ESM-only: its "." export declares no `require` condition, so
+   the entry is read from the manifest rather than resolved by name. */
+const ENTRY = pathToFileURL(
+  join(PKG_DIR, PKG.exports?.["."]?.import ?? PKG.module ?? PKG.main),
+).href
 
 const fails = []
 const oks = []
@@ -45,7 +58,7 @@ const tmp = mkdtempSync(join(tmpdir(), "o2h-surface-"))
 
 // ---------------------------------------------------------- 1. library API ----
 
-const api = await import("@kyonax/org2html")
+const api = await import(ENTRY)
 
 // The four names the package documents as its STABLE surface.
 const doc = "#+TITLE: Library\n#+DATE: 2026-05-01\n\n* Heading\n\nA *bold* word.\n"
