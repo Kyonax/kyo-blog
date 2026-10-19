@@ -54,7 +54,7 @@
     "eslint-plugin-prettier": "^5.5.4",
     "eslint-plugin-unicorn": "^62.0.0",
     "eslint-plugin-unused-imports": "^4.3.0",
-    "eslint-plugin-vue": "~10.5.0",
+    "eslint-plugin-vue": "~10.11.1",
     "jiti": "^2.6.1",
     "jsdom": "^27.0.1",
     "npm-run-all2": "^8.0.4",
